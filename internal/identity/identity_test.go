@@ -26,7 +26,7 @@ func TestCoreAuthenticatorLoadsProfileAndPermissions(t *testing.T) {
 	}))
 	defer server.Close()
 
-	request := httptest.NewRequest(http.MethodGet, "/kael/api/v1/bootstrap", nil)
+	request := httptest.NewRequest(http.MethodGet, "/ai/api/v1/bootstrap", nil)
 	request.Header.Set("X-JMS-ORG", "org-1")
 	request.Header.Set("Authorization", "Bearer test")
 	principal, err := NewCoreAuthenticator(server.URL, true, time.Second).Authenticate(context.Background(), request)
@@ -36,7 +36,7 @@ func TestCoreAuthenticatorLoadsProfileAndPermissions(t *testing.T) {
 }
 
 func TestVerifyCSRFSupportsJumpServerCookiePrefix(t *testing.T) {
-	request := httptest.NewRequest(http.MethodPost, "/kael/api/v1/conversations", nil)
+	request := httptest.NewRequest(http.MethodPost, "/ai/api/v1/conversations", nil)
 	request.AddCookie(&http.Cookie{Name: "jms_csrftoken", Value: "expected"})
 	request.Header.Set("X-CSRFToken", "expected")
 	if err := VerifyCSRF(request); err != nil {
@@ -49,7 +49,7 @@ func TestVerifyCSRFSupportsJumpServerCookiePrefix(t *testing.T) {
 }
 
 func TestOriginVerifierIsDisabledWithoutAllowedOrigins(t *testing.T) {
-	request := httptest.NewRequest(http.MethodPost, "http://kael.internal/kael/api/v1/conversations", nil)
+	request := httptest.NewRequest(http.MethodPost, "http://kael.internal/ai/api/v1/conversations", nil)
 	request.Header.Set("Origin", "https://jumpserver.example.test")
 	request.Header.Set("X-Forwarded-Host", "jumpserver.example.test")
 	request.Header.Set("X-Forwarded-Proto", "https")
@@ -61,7 +61,7 @@ func TestOriginVerifierIsDisabledWithoutAllowedOrigins(t *testing.T) {
 
 func TestOriginVerifierIsEnabledWithAllowedOrigins(t *testing.T) {
 	verifier := NewOriginVerifier([]string{"https://jumpserver.example.test"}, false)
-	request := httptest.NewRequest(http.MethodPost, "http://kael.internal/kael/api/v1/conversations", nil)
+	request := httptest.NewRequest(http.MethodPost, "http://kael.internal/ai/api/v1/conversations", nil)
 	request.Header.Set("Origin", "https://untrusted.example.test")
 
 	if err := verifier.Verify(request); err != ErrOriginRejected {

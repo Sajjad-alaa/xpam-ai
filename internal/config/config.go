@@ -158,7 +158,7 @@ func defaultName() string {
 	if err != nil || strings.TrimSpace(hostname) == "" {
 		hostname = "localhost"
 	}
-	value := []rune("[Kael]-" + hostname)
+	value := []rune("[AI]-" + hostname)
 	if len(value) > 128 {
 		value = value[:128]
 	}

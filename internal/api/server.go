@@ -60,14 +60,17 @@ func New(options Options) (*Server, error) {
 
 func (s *Server) Handler() http.Handler { return s.engine }
 
-func (s *Server) routes() {
-	s.engine.GET("/kael/health/live", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
-	s.engine.GET("/kael/health/startup", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
-	s.engine.GET("/kael/health/ready", s.ready)
-	s.engine.GET("/kael/internal/metrics", s.metrics)
-	s.engine.GET("/kael/openapi.json", s.openapi)
+// PathPrefix is the public URL prefix of the AI service (XPAM; previously /kael).
+const PathPrefix = "/ai"
 
-	api := s.engine.Group("/kael/api/v1")
+func (s *Server) routes() {
+	s.engine.GET(PathPrefix+"/health/live", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
+	s.engine.GET(PathPrefix+"/health/startup", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"status": "ok"}) })
+	s.engine.GET(PathPrefix+"/health/ready", s.ready)
+	s.engine.GET(PathPrefix+"/internal/metrics", s.metrics)
+	s.engine.GET(PathPrefix+"/openapi.json", s.openapi)
+
+	api := s.engine.Group(PathPrefix+"/api/v1")
 	api.Use(s.authorize())
 	api.GET("/bootstrap", func(c *gin.Context) { c.JSON(http.StatusOK, s.service.Bootstrap()) })
 	api.GET("/assistants", s.assistants)
@@ -217,7 +220,7 @@ func (s *Server) createConversation(c *gin.Context) {
 		s.writeError(c, err)
 		return
 	}
-	c.Header("Location", "/kael/api/v1/conversations/"+value.ID)
+	c.Header("Location", PathPrefix+"/api/v1/conversations/"+value.ID)
 	c.JSON(http.StatusCreated, value)
 }
 
@@ -276,7 +279,7 @@ func (s *Server) createMessage(c *gin.Context) {
 		c.JSON(http.StatusOK, value)
 		return
 	}
-	c.Header("Location", "/kael/api/v1/conversations/"+c.Param("id")+"/messages")
+	c.Header("Location", PathPrefix+"/api/v1/conversations/"+c.Param("id")+"/messages")
 	c.JSON(http.StatusCreated, value)
 }
 
@@ -300,7 +303,7 @@ func (s *Server) branch(c *gin.Context) {
 		s.writeError(c, err)
 		return
 	}
-	c.Header("Location", "/kael/api/v1/conversations/"+value.ID)
+	c.Header("Location", PathPrefix+"/api/v1/conversations/"+value.ID)
 	c.JSON(http.StatusCreated, value)
 }
 
@@ -335,7 +338,7 @@ func (s *Server) createArtifact(c *gin.Context) {
 		s.writeError(c, err)
 		return
 	}
-	c.Header("Location", "/kael/api/v1/artifacts/"+value.ID+"/content")
+	c.Header("Location", PathPrefix+"/api/v1/artifacts/"+value.ID+"/content")
 	c.JSON(http.StatusCreated, value)
 }
 
@@ -393,7 +396,7 @@ func (s *Server) createPanel(c *gin.Context) {
 		s.writeError(c, err)
 		return
 	}
-	c.Header("Location", "/kael/api/v1/panel-sessions/"+value.ID)
+	c.Header("Location", PathPrefix+"/api/v1/panel-sessions/"+value.ID)
 	c.JSON(http.StatusCreated, value)
 }
 
@@ -484,7 +487,7 @@ func (s *Server) createRun(c *gin.Context) {
 		s.writeError(c, err)
 		return
 	}
-	c.Header("Location", "/kael/api/v1/runs/"+value.ID)
+	c.Header("Location", PathPrefix+"/api/v1/runs/"+value.ID)
 	c.JSON(http.StatusAccepted, value)
 }
 
@@ -767,8 +770,8 @@ func (s *Server) metrics(c *gin.Context) {
 func (s *Server) openapi(c *gin.Context) {
 	paths := map[string]any{}
 	for _, route := range s.engine.Routes() {
-		if strings.HasPrefix(route.Path, "/kael/api/v1") {
-			path := strings.TrimPrefix(strings.ReplaceAll(route.Path, ":id", "{id}"), "/kael/api/v1")
+		if strings.HasPrefix(route.Path, PathPrefix+"/api/v1") {
+			path := strings.TrimPrefix(strings.ReplaceAll(route.Path, ":id", "{id}"), PathPrefix+"/api/v1")
 			if path == "" {
 				path = "/"
 			}
@@ -780,7 +783,7 @@ func (s *Server) openapi(c *gin.Context) {
 			entry[strings.ToLower(route.Method)] = map[string]any{"operationId": strings.ReplaceAll(strings.Trim(route.Path, "/"), "/", "_") + "_" + strings.ToLower(route.Method), "responses": map[string]any{"200": map[string]any{"description": "Success"}}}
 		}
 	}
-	c.JSON(http.StatusOK, gin.H{"openapi": "3.1.0", "info": gin.H{"title": "Kael API", "version": domain.APIVersion}, "servers": []gin.H{{"url": "/kael/api/v1"}}, "paths": paths})
+	c.JSON(http.StatusOK, gin.H{"openapi": "3.1.0", "info": gin.H{"title": "XPAM AI API", "version": domain.APIVersion}, "servers": []gin.H{{"url": PathPrefix+"/api/v1"}}, "paths": paths})
 }
 
 func (s *Server) writeError(c *gin.Context, err error) {
