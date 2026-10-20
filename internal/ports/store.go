@@ -31,6 +31,7 @@ type Tx interface {
 	ListQuestionedConversationsByOrganization(organizationID string, offset, limit int) ([]domain.Conversation, int64, error)
 	ConversationByOrganization(id, organizationID string) (*domain.Conversation, error)
 	ActiveRunCount(conversationID string) (int64, error)
+	ActiveRunCountForSubject(subjectID string) (int64, error)
 
 	CreateMessage(*domain.Message) error
 	Message(id string, principal domain.Principal, lock bool) (*domain.Message, error)

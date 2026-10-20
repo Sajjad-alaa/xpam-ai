@@ -417,6 +417,17 @@ func (t *memoryTx) ActiveRunCount(conversationID string) (int64, error) {
 	return count, nil
 }
 
+// XPAM: active runs of one user across all conversations (one user must not hold every worker)
+func (t *memoryTx) ActiveRunCountForSubject(subjectID string) (int64, error) {
+	var count int64
+	for _, value := range t.state.runs {
+		if value.SubjectID == subjectID && activeRun(value.State) {
+			count++
+		}
+	}
+	return count, nil
+}
+
 func (t *memoryTx) CreateMessage(value *domain.Message) error {
 	for _, existing := range t.state.messages {
 		if value.IdempotencyKey != "" && existing.IdempotencyKey == value.IdempotencyKey && owns(domain.Principal{SubjectID: value.SubjectID, OrganizationID: value.OrganizationID}, existing.SubjectID, existing.OrganizationID) {
@@ -784,6 +795,33 @@ func (t *memoryTx) Maintain(now, eventCutoff time.Time) error {
 	for id, value := range t.state.deliveries {
 		if value.CreatedAt.Before(eventCutoff) {
 			delete(t.state.deliveries, id)
+		}
+	}
+	// XPAM: the store is copied on every operation, so it must not grow forever: keep only the latest
+	// context of each panel, and drop old events once they have been projected
+	latest := map[string]uint64{}
+	for _, value := range t.state.contexts {
+		if value.Version > latest[value.PanelSessionID] {
+			latest[value.PanelSessionID] = value.Version
+		}
+	}
+	for id, value := range t.state.contexts {
+		if value.Version < latest[value.PanelSessionID] {
+			delete(t.state.contexts, id)
+			continue
+		}
+		if panel, ok := t.state.panels[value.PanelSessionID]; (!ok || panel.State == "expired") && value.CreatedAt.Before(eventCutoff) {
+			delete(t.state.contexts, id)
+		}
+	}
+	for id, value := range t.state.events {
+		if value.ProjectedAt != nil && value.CreatedAt.Before(eventCutoff) {
+			if value.RunID != "" {
+				if run, ok := t.state.runs[value.RunID]; ok && activeRun(run.State) {
+					continue
+				}
+			}
+			delete(t.state.events, id)
 		}
 	}
 	return nil

@@ -148,8 +148,12 @@ func readOnlyCall(call *syntax.CallExpr) bool {
 	}
 	switch name {
 	case "du", "df", "ls", "pwd", "cat", "head", "tail", "wc", "grep", "egrep", "fgrep",
-		"id", "whoami", "uname", "uptime", "free", "ps", "stat", "readlink", "realpath", "lscpu", "lsmod":
+		"id", "whoami", "uname", "uptime", "ps", "stat", "readlink", "realpath", "lscpu", "lsmod":
 		return true
+	case "free":
+		// Flags only: on Huawei/H3C devices "free user-interface vty 0" disconnects users.
+		return !anyGlob && onlyFlags(args[1:], "bkmgtwlhv", "--bytes", "--kilo", "--mega", "--giga", "--tera",
+			"--human", "--wide", "--lohi", "--total", "--si", "--kibi", "--mebi", "--gibi", "--tebi", "--version")
 	case "sort":
 		// Glob expansion can inject options such as --compress-program or -o.
 		return !anyGlob && readOnlySort(args[1:])

@@ -33,6 +33,9 @@ type CreateRunRequest struct {
 	RegeneratedFromID string `json:"regenerated_from_id,omitempty"`
 }
 
+// maxActiveRunsPerUser keeps one user from occupying every run worker (there are only a few).
+const maxActiveRunsPerUser = 2
+
 func (s *Service) CreateRun(ctx context.Context, principal domain.Principal, request CreateRunRequest) (*domain.Run, error) {
 	request.ConversationID, request.InputMessageID, request.PanelSessionID = strings.TrimSpace(request.ConversationID), strings.TrimSpace(request.InputMessageID), strings.TrimSpace(request.PanelSessionID)
 	if request.ExecutionMode == "" {
@@ -111,6 +114,12 @@ func (s *Service) CreateRun(ctx context.Context, principal domain.Principal, req
 		}
 		if active >= domain.MaxQueuedRuns {
 			return serviceError(Conflict, "run_queue_full", "conversation run queue is full", nil)
+		}
+		// XPAM: the workers are shared by everyone; a few active runs per user at a time
+		if mine, err := tx.ActiveRunCountForSubject(principal.SubjectID); err != nil {
+			return err
+		} else if mine >= maxActiveRunsPerUser {
+			return serviceError(RateLimited, "user_run_limit", "you already have runs in progress; wait for one to finish", nil)
 		}
 		var contextVersion uint64
 		var contextDigest string
